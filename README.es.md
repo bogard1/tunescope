@@ -61,6 +61,7 @@ Navega y busca en una biblioteca local de acordes. La búsqueda soporta:
 - Teclas **1–N** para cambiar de versión desde el teclado
 - **▶ Ver en YouTube** — abre el video en el browser predeterminado
 - **⬇ Descargar + Separar pistas** — descarga el audio y ejecuta el pipeline de análisis
+- **⬡ Exportar PDF** — genera un PDF multi-columna optimizado para ocupar la menor cantidad de páginas posible, guardado en `~/Downloads/`
 
 ---
 
@@ -182,7 +183,14 @@ El TUI lo detecta automáticamente si existe un archivo `library.db` dentro del 
 | `CHORD_LIBRARY` | `~/chord-library` | Ruta al directorio raíz de la biblioteca de acordes |
 | `CHORD_LIBRARY_DB` | auto-detectado | Ruta al SQLite de índice de artistas (opcional) |
 
-Ejemplo:
+Las variables pueden definirse en un archivo `.env` en el directorio desde donde ejecutás `music-tui` — se carga automáticamente al iniciar. Copiá el ejemplo incluido para empezar:
+
+```bash
+cp .env.example .env
+# luego editá .env con tus rutas
+```
+
+O exportarlas en el shell:
 
 ```bash
 export CHORD_LIBRARY=/data/mis-acordes

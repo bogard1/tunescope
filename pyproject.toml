@@ -12,6 +12,8 @@ dependencies = [
     "soundfile>=0.12",
     "numpy>=1.26",
     "rapidfuzz>=3.0",
+    "fpdf2>=2.7",
+    "python-dotenv>=1.0",
 ]
 
 [project.scripts]

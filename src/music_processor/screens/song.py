@@ -55,7 +55,13 @@ class SongScreen(Screen):
 
     #btn-download {
         height: 3;
+        margin-right: 1;
         min-width: 28;
+    }
+
+    #btn-pdf {
+        height: 3;
+        min-width: 18;
     }
 
     #key-hint {
@@ -82,6 +88,7 @@ class SongScreen(Screen):
         super().__init__()
         self._meta = meta
         self._active_version_idx = 0
+        self._current_content: str = ""
 
     def compose(self) -> ComposeResult:
         meta = self._meta
@@ -105,6 +112,7 @@ class SongScreen(Screen):
             if youtube_url:
                 yield Button("▶  Ver en YouTube", id="btn-youtube")
                 yield Button("⬇  Descargar + Separar", id="btn-download")
+            yield Button("⬡  Exportar PDF", id="btn-pdf")
 
         if len(versions) > 1:
             yield Label(f"Teclas 1–{len(versions)} para cambiar versión", id="key-hint")
@@ -135,6 +143,8 @@ class SongScreen(Screen):
             self._open_youtube()
         elif btn_id == "btn-download":
             self._trigger_download()
+        elif btn_id == "btn-pdf":
+            self._export_pdf()
 
     def _switch_version(self, idx: int) -> None:
         versions = self._meta.get("versions", [])
@@ -169,6 +179,7 @@ class SongScreen(Screen):
         self.app.call_from_thread(self._update_content, content)
 
     def _update_content(self, content: str) -> None:
+        self._current_content = content
         self.query_one("#chord-content", Static).update(content)
 
     def _open_youtube(self) -> None:
@@ -187,3 +198,20 @@ class SongScreen(Screen):
             self.notify("No se pudo obtener la URL de YouTube", severity="error")
             return
         self.app.push_screen(HomeScreen(initial_url=url))
+
+    @work(thread=True)
+    def _export_pdf(self) -> None:
+        from ..pdf_export import generate_chord_pdf
+
+        text = self._current_content
+        title = self._meta.get("title", "cancion")
+        artist = self._meta.get("artist", "artista")
+        try:
+            output_path = generate_chord_pdf(title, artist, text)
+            self.app.call_from_thread(
+                self.notify, f"PDF guardado: {output_path}", timeout=8
+            )
+        except Exception as exc:
+            self.app.call_from_thread(
+                self.notify, f"Error al generar PDF: {exc}", severity="error"
+            )

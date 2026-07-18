@@ -61,6 +61,7 @@ Browse and search a local chord library. Search supports:
 - Keys **1–N** to switch versions from the keyboard
 - **▶ Watch on YouTube** — opens the video in the default browser
 - **⬇ Download + Separate** — downloads the audio and runs the analysis pipeline
+- **⬡ Export PDF** — generates a multi-column PDF optimized to fit on as few pages as possible, saved to `~/Downloads/`
 
 ---
 
@@ -182,7 +183,14 @@ The TUI auto-detects it if a `library.db` file exists inside the library directo
 | `CHORD_LIBRARY` | `~/chord-library` | Path to the chord library root directory |
 | `CHORD_LIBRARY_DB` | auto-detected | Path to the artist index SQLite file (optional) |
 
-Example:
+Variables can be set in a `.env` file in the directory where you run `music-tui` — it is loaded automatically on startup. Copy the provided example to get started:
+
+```bash
+cp .env.example .env
+# then edit .env with your paths
+```
+
+Or export them in your shell:
 
 ```bash
 export CHORD_LIBRARY=/data/my-chords
