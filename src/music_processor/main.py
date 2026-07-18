@@ -1,8 +1,8 @@
 def main() -> None:
     from dotenv import load_dotenv
-    from music_processor.app import MusicProcessorApp
+    load_dotenv()  # must run before any music_processor screen imports
 
-    load_dotenv()
+    from music_processor.app import MusicProcessorApp
     MusicProcessorApp().run()
 
 

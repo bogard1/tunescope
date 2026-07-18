@@ -2,9 +2,12 @@ from pathlib import Path
 
 from textual import work
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Center, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, ProgressBar, RichLog
+
+from ..i18n import t
 
 
 class HomeScreen(Screen):
@@ -56,7 +59,7 @@ class HomeScreen(Screen):
     }
     """
 
-    BINDINGS = [("escape", "back", "Volver")]
+    BINDINGS = [Binding("escape", "back", "Back")]
 
     def __init__(self, initial_url: str | None = None) -> None:
         super().__init__()
@@ -75,12 +78,9 @@ class HomeScreen(Screen):
         yield Footer()
         with Center():
             with Vertical(id="card"):
-                yield Label("Ingresá un archivo de audio o URL de YouTube:")
-                yield Input(
-                    placeholder="~/musica/cancion.mp3  o  https://youtube.com/watch?v=...",
-                    id="source-input",
-                )
-                yield Button("Procesar", variant="primary", id="process-btn")
+                yield Label(t("home.label"))
+                yield Input(placeholder=t("home.placeholder"), id="source-input")
+                yield Button(t("home.btn_process"), variant="primary", id="process-btn")
                 yield RichLog(id="log", highlight=True, markup=True)
                 yield ProgressBar(id="progress", total=100, show_eta=False)
 
@@ -93,7 +93,7 @@ class HomeScreen(Screen):
         if event.button.id == "process-btn":
             source = self.query_one("#source-input", Input).value.strip()
             if not source:
-                self.notify("Ingresá un archivo o URL", severity="warning")
+                self.notify(t("home.notify_empty"), severity="warning")
                 return
             self._start(source)
 
@@ -140,39 +140,35 @@ class HomeScreen(Screen):
         try:
             base_dir = Path.home() / ".music-processor"
 
-            # Step 1: obtain audio file
             if is_youtube_url(source):
-                log("[bold cyan]Descargando audio de YouTube...[/]")
+                log(t("home.log_downloading"))
                 audio_path = download_audio(
                     source,
                     base_dir / "downloads",
                     progress_callback=log,
                 )
-                log(f"[green]✓ Descargado:[/] {audio_path.name}")
+                log(t("home.log_downloaded", name=audio_path.name))
             else:
                 audio_path = Path(source).expanduser().resolve()
                 if not audio_path.exists():
-                    raise FileNotFoundError(f"Archivo no encontrado: {audio_path}")
-                log(f"[green]✓ Archivo:[/] {audio_path.name}")
+                    raise FileNotFoundError(t("home.err_not_found", path=audio_path))
+                log(t("home.log_file", name=audio_path.name))
 
             advance(20)
 
-            # Step 2: source separation
             stems_dir = base_dir / "stems" / audio_path.stem
-            log("[bold cyan]Separando instrumentos con Demucs...[/]")
-            log("[dim]La primera vez descarga el modelo (~80 MB). Puede tardar unos minutos.[/]")
+            log(t("home.log_separating"))
+            log(t("home.log_model"))
             stems = separate_stems(audio_path, stems_dir, progress_callback=log)
-            log(f"[green]✓ Stems:[/] {', '.join(stems.keys())}")
+            log(t("home.log_stems", stems=", ".join(stems.keys())))
             advance(40)
 
-            # Step 3: analysis (prefer "other" stem — harmonics without drums/bass/voice)
             analysis_source = stems.get("other", audio_path)
-            log("[bold cyan]Analizando tonalidad y acordes...[/]")
+            log(t("home.log_analyzing"))
             analysis = analyze(analysis_source, progress_callback=log)
-            log(f"[green]✓ Tonalidad:[/] {analysis['key']}  [green]BPM:[/] {analysis['bpm']}")
+            log(t("home.log_key_bpm", key=analysis["key"], bpm=analysis["bpm"]))
             advance(40)
 
-            # Save results alongside the audio stems
             output_dir = list(stems.values())[0].parent
             import json
             results_file = output_dir / "results.json"
@@ -184,7 +180,7 @@ class HomeScreen(Screen):
                 ),
                 encoding="utf-8",
             )
-            log(f"[green]✓ Guardado:[/] {results_file}")
+            log(t("home.log_saved", path=results_file))
 
             result = {**analysis, "stems": stems, "audio_name": audio_path.stem, "output_dir": output_dir}
             self.app.call_from_thread(self._on_complete, result)

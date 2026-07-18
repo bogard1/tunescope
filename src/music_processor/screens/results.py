@@ -6,8 +6,11 @@ from textual import work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center, Horizontal, Vertical
+from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
+
+from ..i18n import t
 
 
 class ResultsScreen(Screen):
@@ -49,8 +52,7 @@ class ResultsScreen(Screen):
     }
 
     .play-btn {
-        width: 9;
-        min-width: 9;
+        min-width: 16;
         margin-right: 1;
     }
 
@@ -89,11 +91,11 @@ class ResultsScreen(Screen):
     }
 
     #btn-back {
-        width: 22;
+        min-width: 28;
     }
     """
 
-    BINDINGS = [Binding("escape", "back", "Nueva canción")]
+    BINDINGS = [Binding("escape", "back", "Back")]
 
     def __init__(self, result: dict) -> None:
         super().__init__()
@@ -112,39 +114,47 @@ class ResultsScreen(Screen):
 
         yield Header()
         yield Footer()
-        yield Static(f"  {name}  |  Tonalidad: {key}  |  BPM: {bpm}", id="summary")
+        yield Static(t("results.summary", name=name, key=key, bpm=bpm), id="summary")
 
         with Horizontal(id="columns"):
             with Vertical(id="stems-panel"):
-                yield Label("Stems generados")
-                for stem_name, stem_path in stems.items():
+                yield Label(t("results.stems_label"))
+                for i, (stem_name, stem_path) in enumerate(stems.items()):
                     size_mb = stem_path.stat().st_size / (1024 * 1024)
                     with Horizontal(classes="stem-row"):
-                        yield Button("▶ Play", id=f"play-{stem_name}", classes="play-btn")
+                        yield Button(f"▶ Play  ({i + 1})", id=f"play-{stem_name}", classes="play-btn")
                         yield Static(f"{stem_name}  ({size_mb:.1f} MB)", classes="stem-label")
                 if not stems:
-                    yield Static("Sin stems disponibles")
+                    yield Static(t("results.no_stems"))
                 if output_dir:
                     yield Static(f"📁 {output_dir}", id="output-path")
 
             with Vertical(id="chords-panel"):
-                yield Label("Acordes detectados")
+                yield Label(t("results.chords_label"))
                 yield DataTable(id="chords-table", zebra_stripes=True)
 
         with Center(id="back-area"):
-            yield Button("← Nueva canción", id="btn-back", variant="primary")
+            yield Button(t("results.btn_back"), id="btn-back", variant="primary")
 
     def on_mount(self) -> None:
         chords: list[dict] = self._result.get("chords", [])
         table = self.query_one("#chords-table", DataTable)
-        table.add_columns("Tiempo", "Acorde", "Duración")
+        table.add_columns(t("results.col_time"), t("results.col_chord"), t("results.col_duration"))
         for c in chords:
             table.add_row(f"{c['time']:.1f}s", c["chord"], f"{c['duration']:.1f}s")
 
         if not shutil.which("mpv") and not shutil.which("ffplay"):
             for btn in self.query(".play-btn").results(Button):
                 btn.disabled = True
-            self.notify("Instalá mpv para reproducir audio", severity="warning")
+            self.notify(t("results.notify_no_player"), severity="warning")
+
+    def on_key(self, event: Key) -> None:
+        if event.character and event.character.isdigit():
+            idx = int(event.character) - 1
+            stems = list(self._result.get("stems", {}).keys())
+            if 0 <= idx < len(stems):
+                self._toggle_play(stems[idx])
+                event.stop()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-back":
@@ -186,14 +196,14 @@ class ResultsScreen(Screen):
         self._update_play_buttons(None)
 
     def _update_play_buttons(self, active: str | None) -> None:
-        for stem_name in self._result.get("stems", {}):
+        for i, stem_name in enumerate(self._result.get("stems", {})):
             try:
                 btn = self.query_one(f"#play-{stem_name}", Button)
                 if stem_name == active:
-                    btn.label = "■ Stop"
+                    btn.label = f"■ Stop  ({i + 1})"
                     btn.variant = "error"
                 else:
-                    btn.label = "▶ Play"
+                    btn.label = f"▶ Play  ({i + 1})"
                     btn.variant = "default"
             except Exception:
                 pass

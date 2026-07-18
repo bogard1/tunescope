@@ -8,6 +8,8 @@ from textual.events import Key
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, Static
 
+from ..i18n import t
+
 
 class SongScreen(Screen):
     DEFAULT_CSS = """
@@ -82,7 +84,12 @@ class SongScreen(Screen):
     }
     """
 
-    BINDINGS = [Binding("escape", "back", "Volver")]
+    BINDINGS = [
+        Binding("escape", "back", "Back"),
+        Binding("y", "youtube", show=False),
+        Binding("d", "download", show=False),
+        Binding("p", "pdf", show=False),
+    ]
 
     def __init__(self, meta: dict) -> None:
         super().__init__()
@@ -101,24 +108,23 @@ class SongScreen(Screen):
         yield Footer()
         yield Static(f"  {title}  —  {artist}", id="song-header")
 
-        # Single row: version buttons | spacer | action buttons
         with Horizontal(id="controls"):
             if versions:
-                yield Label("Versión:", id="version-label")
+                yield Label(t("song.version_label"), id="version-label")
             for i, v in enumerate(versions):
-                label = f"{i + 1}  {v['type']}" + ("  ✓" if i == 0 else "")
+                label = f"{v['type']}  ({i + 1})" + ("  ✓" if i == 0 else "")
                 yield Button(label, id=f"version-{i}", variant="primary" if i == 0 else "default", classes="version-btn")
-            yield Static("", id="action-sep")  # pushes action buttons right
+            yield Static("", id="action-sep")
             if youtube_url:
-                yield Button("▶  Ver en YouTube", id="btn-youtube")
-                yield Button("⬇  Descargar + Separar", id="btn-download")
-            yield Button("⬡  Exportar PDF", id="btn-pdf")
+                yield Button(t("song.btn_youtube"), id="btn-youtube")
+                yield Button(t("song.btn_download"), id="btn-download")
+            yield Button(t("song.btn_pdf"), id="btn-pdf")
 
         if len(versions) > 1:
-            yield Label(f"Teclas 1–{len(versions)} para cambiar versión", id="key-hint")
+            yield Label(t("song.version_hint", n=len(versions)), id="key-hint")
 
         with ScrollableContainer(id="content-area"):
-            yield Static("Cargando...", id="chord-content", markup=False)
+            yield Static(t("song.loading"), id="chord-content", markup=False)
 
     def on_mount(self) -> None:
         if self._meta.get("versions"):
@@ -134,6 +140,40 @@ class SongScreen(Screen):
             if 0 <= idx < len(versions):
                 self._switch_version(idx)
                 event.stop()
+        elif event.key == "right":
+            self._focus_control_button(1)
+            event.stop()
+        elif event.key == "left":
+            self._focus_control_button(-1)
+            event.stop()
+        elif event.key == "up":
+            self.query_one("#content-area", ScrollableContainer).scroll_relative(y=-3)
+            event.stop()
+        elif event.key == "down":
+            self.query_one("#content-area", ScrollableContainer).scroll_relative(y=3)
+            event.stop()
+
+    def _focus_control_button(self, direction: int) -> None:
+        buttons: list[Button] = []
+        versions = self._meta.get("versions", [])
+        for i in range(len(versions)):
+            try:
+                buttons.append(self.query_one(f"#version-{i}", Button))
+            except Exception:
+                pass
+        for btn_id in ("btn-youtube", "btn-download", "btn-pdf"):
+            try:
+                buttons.append(self.query_one(f"#{btn_id}", Button))
+            except Exception:
+                pass
+        if not buttons:
+            return
+        focused = self.focused
+        if focused in buttons:
+            idx = (buttons.index(focused) + direction) % len(buttons)
+        else:
+            idx = 0 if direction > 0 else len(buttons) - 1
+        buttons[idx].focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         btn_id = event.button.id or ""
@@ -155,7 +195,7 @@ class SongScreen(Screen):
                 btn = self.query_one(f"#version-{i}", Button)
                 active = i == idx
                 btn.variant = "primary" if active else "default"
-                btn.label = f"{i + 1}  {v['type']}" + ("  ✓" if active else "")
+                btn.label = f"{v['type']}  ({i + 1})" + ("  ✓" if active else "")
             except Exception:
                 pass
         self._active_version_idx = idx
@@ -175,12 +215,21 @@ class SongScreen(Screen):
                 versions[version_idx]["file"],
             )
         except Exception as exc:
-            content = f"Error al cargar el contenido: {exc}"
+            content = t("song.err_content", error=exc)
         self.app.call_from_thread(self._update_content, content)
 
     def _update_content(self, content: str) -> None:
         self._current_content = content
         self.query_one("#chord-content", Static).update(content)
+
+    def action_youtube(self) -> None:
+        self._open_youtube()
+
+    def action_download(self) -> None:
+        self._trigger_download()
+
+    def action_pdf(self) -> None:
+        self._export_pdf()
 
     def _open_youtube(self) -> None:
         from ..library.index import embed_to_watch_url
@@ -188,14 +237,14 @@ class SongScreen(Screen):
         if url:
             webbrowser.open(url)
         else:
-            self.notify("URL de YouTube no disponible", severity="warning")
+            self.notify(t("song.notify_no_url"), severity="warning")
 
     def _trigger_download(self) -> None:
         from ..library.index import embed_to_watch_url
         from .home import HomeScreen
         url = embed_to_watch_url(self._meta.get("youtube_url") or "")
         if not url:
-            self.notify("No se pudo obtener la URL de YouTube", severity="error")
+            self.notify(t("song.notify_no_url_dl"), severity="error")
             return
         self.app.push_screen(HomeScreen(initial_url=url))
 
@@ -209,9 +258,9 @@ class SongScreen(Screen):
         try:
             output_path = generate_chord_pdf(title, artist, text)
             self.app.call_from_thread(
-                self.notify, f"PDF guardado: {output_path}", timeout=8
+                self.notify, t("song.notify_pdf_saved", path=output_path), timeout=8
             )
         except Exception as exc:
             self.app.call_from_thread(
-                self.notify, f"Error al generar PDF: {exc}", severity="error"
+                self.notify, t("song.notify_pdf_error", error=exc), severity="error"
             )

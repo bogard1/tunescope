@@ -8,6 +8,8 @@ from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import DataTable, Footer, Header, Input, Label
 
+from ..i18n import t
+
 MAX_ARTISTS = 200
 
 
@@ -76,31 +78,31 @@ class LibraryScreen(Screen):
     }
     """
 
-    BINDINGS = [Binding("escape", "back", "Volver / Artistas")]
+    BINDINGS = [Binding("escape", "back", "Back")]
 
     def __init__(self) -> None:
         super().__init__()
         self._all_artists: list[dict] = []
         self._shown_artists: list[dict] = []
-        self._all_songs: list[dict] = []       # full song list for selected artist
-        self._shown_songs: list[dict] = []     # filtered subset
+        self._all_songs: list[dict] = []
+        self._shown_songs: list[dict] = []
         self._selected_artist: dict | None = None
-        self._phase: str = "artists"           # "artists" | "songs"
+        self._phase: str = "artists"
         self._search_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
-        yield Input(placeholder="Buscar artista...", id="search")
+        yield Input(placeholder=t("library.search_artists"), id="search")
         yield Label("", id="breadcrumb")
         with Horizontal(id="panels"):
             with Vertical(id="artist-panel"):
-                yield Label("Artistas", id="artist-label")
+                yield Label(t("library.label_artists"), id="artist-label")
                 yield DataTable(id="artist-table", cursor_type="row", show_header=False)
             with Vertical(id="song-panel"):
-                yield Label("Canciones", id="song-label")
+                yield Label(t("library.label_songs"), id="song-label")
                 yield DataTable(id="song-table", cursor_type="row", show_header=False)
-        yield Label("Cargando...", id="status")
+        yield Label(t("library.status_loading"), id="status")
 
     def on_mount(self) -> None:
         self.query_one("#artist-table", DataTable).add_column("name", key="name")
@@ -120,11 +122,11 @@ class LibraryScreen(Screen):
         self._selected_artist = artist
         search = self.query_one("#search", Input)
         search.value = ""
-        search.placeholder = f"Buscar en {artist['name']}..."
+        search.placeholder = t("library.search_songs", artist=artist["name"])
         self.query_one("#breadcrumb", Label).update(
-            f"Artistas  ›  {artist['name']}   (ESC para volver)"
+            t("library.breadcrumb", artist=artist["name"])
         )
-        self._set_status(f"Cargando canciones de {artist['name']}...")
+        self._set_status(t("library.status_loading_songs", artist=artist["name"]))
         self._load_songs(artist)
         search.focus()
 
@@ -135,13 +137,16 @@ class LibraryScreen(Screen):
         self._shown_songs = []
         search = self.query_one("#search", Input)
         search.value = ""
-        search.placeholder = "Buscar artista..."
+        search.placeholder = t("library.search_artists")
         self.query_one("#breadcrumb", Label).update("")
-        self.query_one("#song-label", Label).update("Canciones")
+        self.query_one("#song-label", Label).update(t("library.label_songs"))
         self.query_one("#song-table", DataTable).clear()
         suffix = f"  (mostrando {MAX_ARTISTS})" if len(self._all_artists) > MAX_ARTISTS else ""
-        self.query_one("#artist-label", Label).update(f"Artistas{suffix}")
-        self._set_status(f"{len(self._all_artists)} artistas")
+        self.query_one("#artist-label", Label).update(
+            t("library.label_artists") + suffix if not suffix
+            else t("library.label_artists_max", max=MAX_ARTISTS)
+        )
+        self._set_status(t("library.status_artists", n=len(self._all_artists)))
         search.focus()
 
     # ── data loading (background threads) ────────────────────────────────────
@@ -175,31 +180,39 @@ class LibraryScreen(Screen):
     def _set_artists(self, artists: list[dict]) -> None:
         self._all_artists = artists
         self._fill_artist_table(artists[:MAX_ARTISTS])
-        suffix = f"  (mostrando {MAX_ARTISTS})" if len(artists) > MAX_ARTISTS else ""
-        self.query_one("#artist-label", Label).update(f"Artistas{suffix}")
-        self._set_status(f"{len(artists)} artistas — buscá para filtrar")
+        label = (
+            t("library.label_artists_max", max=MAX_ARTISTS)
+            if len(artists) > MAX_ARTISTS
+            else t("library.label_artists")
+        )
+        self.query_one("#artist-label", Label).update(label)
+        self._set_status(t("library.status_artists_hint", n=len(artists)))
 
     def _set_songs(self, artist: dict, songs: list[dict]) -> None:
         self._all_songs = songs
         self._shown_songs = songs
         self._fill_song_table(songs)
-        self.query_one("#song-label", Label).update(f"{artist['name']}  ({len(songs)})")
-        self._set_status(f"{len(songs)} canciones — buscá para filtrar")
+        self.query_one("#song-label", Label).update(
+            t("library.label_songs_count", artist=artist["name"], n=len(songs))
+        )
+        self._set_status(t("library.status_songs_hint", n=len(songs)))
 
     def _apply_artist_search(self, results: list[dict], query: str) -> None:
         self._fill_artist_table(results)
         self.query_one("#artist-label", Label).update(
-            f"Artistas ({len(results)})" if results else "Sin resultados"
+            t("library.label_artists_count", n=len(results)) if results
+            else t("library.label_no_results")
         )
-        self._set_status(f'"{query}" → {len(results)} artistas')
+        self._set_status(t("library.search_result_artists", q=query, n=len(results)))
 
     def _apply_song_search(self, results: list[dict], query: str) -> None:
         self._fill_song_table(results)
         name = self._selected_artist["name"] if self._selected_artist else ""
         self.query_one("#song-label", Label).update(
-            f"{name}  ({len(results)})" if results else "Sin resultados"
+            t("library.label_songs_count", artist=name, n=len(results)) if results
+            else t("library.label_no_results")
         )
-        self._set_status(f'"{query}" → {len(results)} canciones')
+        self._set_status(t("library.search_result_songs", q=query, n=len(results)))
 
     def _fill_artist_table(self, artists: list[dict]) -> None:
         self._shown_artists = artists
@@ -226,18 +239,24 @@ class LibraryScreen(Screen):
         if self._phase == "artists":
             if not query:
                 self._fill_artist_table(self._all_artists[:MAX_ARTISTS])
-                suffix = f"  (mostrando {MAX_ARTISTS})" if len(self._all_artists) > MAX_ARTISTS else ""
-                self.query_one("#artist-label", Label).update(f"Artistas{suffix}")
-                self._set_status(f"{len(self._all_artists)} artistas")
+                label = (
+                    t("library.label_artists_max", max=MAX_ARTISTS)
+                    if len(self._all_artists) > MAX_ARTISTS
+                    else t("library.label_artists")
+                )
+                self.query_one("#artist-label", Label).update(label)
+                self._set_status(t("library.status_artists_hint", n=len(self._all_artists)))
             else:
                 self._search_timer = self.set_timer(0.35, lambda: self._search_artists(query))
 
-        else:  # songs phase
+        else:
             if not query:
                 self._fill_song_table(self._all_songs)
                 name = self._selected_artist["name"] if self._selected_artist else ""
-                self.query_one("#song-label", Label).update(f"{name}  ({len(self._all_songs)})")
-                self._set_status(f"{len(self._all_songs)} canciones")
+                self.query_one("#song-label", Label).update(
+                    t("library.label_songs_count", artist=name, n=len(self._all_songs))
+                )
+                self._set_status(t("library.status_songs_hint", n=len(self._all_songs)))
             else:
                 self._search_timer = self.set_timer(0.35, lambda: self._search_songs(query))
 
