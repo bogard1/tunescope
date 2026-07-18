@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "music-processor"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=0.80",
+    "librosa>=0.10",
+    "soundfile>=0.12",
+    "numpy>=1.26",
+    "rapidfuzz>=3.0",
+]
+
+[project.scripts]
+music-tui = "music_processor.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/music_processor"]
