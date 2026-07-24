@@ -26,6 +26,10 @@ venv/bin/music-tui
 
 ## Funcionalidades
 
+### Soporte de idiomas
+
+La interfaz está disponible en **inglés** y **español**. Presioná **`l`** desde el menú principal para cambiar de idioma en cualquier momento — todos los labels, hints y notificaciones se actualizan al instante.
+
 ### Procesar Audio
 
 Recibe un archivo de audio local o una URL de YouTube y ejecuta el pipeline completo:
@@ -35,10 +39,15 @@ Recibe un archivo de audio local o una URL de YouTube y ejecuta el pipeline comp
 3. **Analiza** el stem `other` (armónicos sin voz ni percusión):
    - Tonalidad — perfiles de Krumhansl-Kessler sobre chroma CQT
    - BPM — `librosa.beat.beat_track`
-   - Acordes — template matching sobre chroma (24 acordes: 12 mayor + 12 menor)
+   - Acordes — template matching sobre chroma (108 templates: mayor, menor, dim, aug, sus2, sus4, 7, maj7, m7 × 12 notas)
+   - Secciones — segmentación estructural con `librosa.segment.agglomerative`, etiquetadas A/B/C/D/E
 4. **Guarda** `results.json` junto a los stems en `~/.music-processor/stems/<canción>/`
 
 Desde la pantalla de resultados se puede reproducir cada stem con `mpv` o `ffplay`.
+
+### Historial
+
+Cada canción analizada se guarda en `~/.music-processor/history.json`. Presioná **h** desde el menú principal (o usá el botón Historial) para navegar análisis anteriores y reabrir cualquier resultado sin volver a correr el pipeline. Presioná **d** sobre una entrada para eliminarla.
 
 ### Biblioteca de Acordes
 
@@ -213,11 +222,12 @@ make run
 ```
 ~/.music-processor/
 ├── downloads/          # audios descargados de YouTube
+├── history.json        # índice de todas las canciones analizadas
 └── stems/<canción>/
     └── htdemucs/<canción>/
         ├── drums.mp3
         ├── bass.mp3
         ├── vocals.mp3
         ├── other.mp3
-        └── results.json    # tonalidad, BPM y acordes detectados
+        └── results.json    # tonalidad, BPM, acordes y secciones detectadas
 ```

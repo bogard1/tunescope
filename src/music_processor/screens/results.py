@@ -85,6 +85,27 @@ class ResultsScreen(Screen):
         height: 1;
     }
 
+    #sections-panel {
+        height: 9;
+        border: solid $panel;
+        padding: 1 2;
+        margin-bottom: 1;
+    }
+
+    #sections-panel.hidden {
+        display: none;
+    }
+
+    #sections-panel > Label {
+        text-style: bold;
+        color: $accent;
+        margin-bottom: 1;
+    }
+
+    #sections-table {
+        height: 1fr;
+    }
+
     #back-area {
         height: 5;
         align: center middle;
@@ -133,6 +154,10 @@ class ResultsScreen(Screen):
                 yield Label(t("results.chords_label"))
                 yield DataTable(id="chords-table", zebra_stripes=True)
 
+        with Vertical(id="sections-panel"):
+            yield Label(t("results.sections_label"))
+            yield DataTable(id="sections-table", zebra_stripes=True)
+
         with Center(id="back-area"):
             yield Button(t("results.btn_back"), id="btn-back", variant="primary")
 
@@ -142,6 +167,25 @@ class ResultsScreen(Screen):
         table.add_columns(t("results.col_time"), t("results.col_chord"), t("results.col_duration"))
         for c in chords:
             table.add_row(f"{c['time']:.1f}s", c["chord"], f"{c['duration']:.1f}s")
+
+        sections: list[dict] = self._result.get("sections", [])
+        if sections:
+            stable = self.query_one("#sections-table", DataTable)
+            stable.add_columns(
+                t("results.col_section"),
+                t("results.col_start"),
+                t("results.col_end"),
+                t("results.col_duration"),
+            )
+            for s in sections:
+                stable.add_row(
+                    s["label"],
+                    f"{s['time']:.1f}s",
+                    f"{s['end']:.1f}s",
+                    f"{s['duration']:.1f}s",
+                )
+        else:
+            self.query_one("#sections-panel").add_class("hidden")
 
         if not shutil.which("mpv") and not shutil.which("ffplay"):
             for btn in self.query(".play-btn").results(Button):

@@ -46,6 +46,7 @@ class MenuScreen(Screen):
     BINDINGS = [
         Binding("a", "open_audio", show=False),
         Binding("b", "open_library", show=False),
+        Binding("h", "open_history", show=False),
         Binding("l", "switch_to_es", "Español"),
         Binding("l", "switch_to_en", "English"),
     ]
@@ -67,6 +68,8 @@ class MenuScreen(Screen):
                 yield Label(t("menu.btn_audio_desc"), id="lbl-audio-desc", classes="menu-btn-label")
                 yield Button(t("menu.btn_library"), id="btn-library", variant="default", classes="menu-btn")
                 yield Label(t("menu.btn_library_desc"), id="lbl-library-desc", classes="menu-btn-label")
+                yield Button(t("menu.btn_history"), id="btn-history", variant="default", classes="menu-btn")
+                yield Label(t("menu.btn_history_desc"), id="lbl-history-desc", classes="menu-btn-label")
 
     def on_mount(self) -> None:
         self.query_one("#btn-audio", Button).focus()
@@ -84,6 +87,8 @@ class MenuScreen(Screen):
             self.action_open_audio()
         elif event.button.id == "btn-library":
             self.action_open_library()
+        elif event.button.id == "btn-history":
+            self.action_open_history()
 
     def action_open_audio(self) -> None:
         from .home import HomeScreen
@@ -92,6 +97,10 @@ class MenuScreen(Screen):
     def action_open_library(self) -> None:
         from .library import LibraryScreen
         self.app.push_screen(LibraryScreen())
+
+    def action_open_history(self) -> None:
+        from .history import HistoryScreen
+        self.app.push_screen(HistoryScreen())
 
     def action_switch_to_es(self) -> None:
         set_lang("es")
@@ -106,5 +115,7 @@ class MenuScreen(Screen):
     def _refresh_ui(self) -> None:
         self.query_one("#btn-audio", Button).label = t("menu.btn_audio")
         self.query_one("#btn-library", Button).label = t("menu.btn_library")
+        self.query_one("#btn-history", Button).label = t("menu.btn_history")
         self.query_one("#lbl-audio-desc", Label).update(t("menu.btn_audio_desc"))
         self.query_one("#lbl-library-desc", Label).update(t("menu.btn_library_desc"))
+        self.query_one("#lbl-history-desc", Label).update(t("menu.btn_history_desc"))

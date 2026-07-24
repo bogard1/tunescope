@@ -34,6 +34,22 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "results.col_duration": "Duration",
         "results.btn_back": "← New song  (Esc)",
         "results.notify_no_player": "Install mpv to play audio",
+        "results.sections_label": "Sections",
+        "results.col_section": "Section",
+        "results.col_start": "Start",
+        "results.col_end": "End",
+        # Menu - history
+        "menu.btn_history": "⏱  History  (h)",
+        "menu.btn_history_desc": "View previously analyzed songs",
+        # History screen
+        "history.title": "Analyzed Songs",
+        "history.col_name": "Song",
+        "history.col_key": "Key",
+        "history.col_bpm": "BPM",
+        "history.col_date": "Date",
+        "history.empty": "No songs analyzed yet. Process a song to see it here.",
+        "history.err_not_found": "Files not found. The song may have been moved or deleted.",
+        "history.notify_deleted": "Removed: {name}",
         # Song
         "song.version_label": "Version:",
         "song.version_hint": "Keys 1–{n} to switch version",
@@ -96,6 +112,22 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
         "results.col_duration": "Duración",
         "results.btn_back": "← Nueva canción  (Esc)",
         "results.notify_no_player": "Instala mpv para reproducir audio",
+        "results.sections_label": "Secciones",
+        "results.col_section": "Sección",
+        "results.col_start": "Inicio",
+        "results.col_end": "Fin",
+        # Menu - historial
+        "menu.btn_history": "⏱  Historial  (h)",
+        "menu.btn_history_desc": "Ver canciones analizadas anteriormente",
+        # Pantalla de historial
+        "history.title": "Canciones Analizadas",
+        "history.col_name": "Canción",
+        "history.col_key": "Tonalidad",
+        "history.col_bpm": "BPM",
+        "history.col_date": "Fecha",
+        "history.empty": "No hay canciones analizadas. Procesa una canción para verla aquí.",
+        "history.err_not_found": "Archivos no encontrados. La canción fue movida o eliminada.",
+        "history.notify_deleted": "Eliminado: {name}",
         # Song
         "song.version_label": "Versión:",
         "song.version_hint": "Teclas 1–{n} para cambiar versión",
@@ -138,7 +170,7 @@ def set_lang(lang: str) -> None:
         _lang = lang
 
 
-def t(key: str, **kwargs: object) -> str:
+def t(_key: str, **kwargs: object) -> str:
     strings = _TRANSLATIONS.get(_lang, _TRANSLATIONS["en"])
-    text = strings.get(key) or _TRANSLATIONS["en"].get(key) or key
+    text = strings.get(_key) or _TRANSLATIONS["en"].get(_key) or _key
     return text.format(**kwargs) if kwargs else text

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from textual import work
@@ -5,9 +6,15 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Center, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, ProgressBar, RichLog
+from textual.widgets import Button, Footer, Header, Input, Label, ProgressBar, TextArea
 
 from ..i18n import t
+
+_MARKUP_RE = re.compile(r'\[/?[^\]]*\]')
+
+
+def _strip_markup(text: str) -> str:
+    return _MARKUP_RE.sub('', text)
 
 
 class HomeScreen(Screen):
@@ -64,6 +71,7 @@ class HomeScreen(Screen):
     def __init__(self, initial_url: str | None = None) -> None:
         super().__init__()
         self._initial_url = initial_url
+        self._log_lines: list[str] = []
 
     def on_mount(self) -> None:
         if self._initial_url:
@@ -81,7 +89,7 @@ class HomeScreen(Screen):
                 yield Label(t("home.label"))
                 yield Input(placeholder=t("home.placeholder"), id="source-input")
                 yield Button(t("home.btn_process"), variant="primary", id="process-btn")
-                yield RichLog(id="log", highlight=True, markup=True)
+                yield TextArea("", id="log", read_only=True, show_line_numbers=False)
                 yield ProgressBar(id="progress", total=100, show_eta=False)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -98,18 +106,22 @@ class HomeScreen(Screen):
             self._start(source)
 
     def _start(self, source: str) -> None:
+        self._log_lines = []
         self.query_one("#process-btn", Button).disabled = True
-        log = self.query_one("#log", RichLog)
+        log = self.query_one("#log", TextArea)
         progress = self.query_one("#progress", ProgressBar)
         log.add_class("visible")
         progress.add_class("visible")
-        log.clear()
+        log.load_text("")
         self._run_pipeline(source)
 
     # --- helpers called on the main thread via call_from_thread ---
 
     def _log(self, msg: str) -> None:
-        self.query_one("#log", RichLog).write(msg)
+        self._log_lines.append(_strip_markup(msg))
+        ta = self.query_one("#log", TextArea)
+        ta.load_text("\n".join(self._log_lines))
+        ta.move_cursor(ta.document.end)
 
     def _advance(self, amount: int) -> None:
         self.query_one("#progress", ProgressBar).advance(amount)
@@ -121,6 +133,16 @@ class HomeScreen(Screen):
 
     def _on_complete(self, result: dict) -> None:
         from .results import ResultsScreen
+        from ..history import save_entry
+
+        source = result.pop("_source", "")
+        save_entry(
+            name=result.get("audio_name", "Unknown"),
+            source=source,
+            key=result.get("key", ""),
+            bpm=result.get("bpm", 0),
+            output_dir=str(result.get("output_dir", "")),
+        )
         self.app.push_screen(ResultsScreen(result))
 
     # --- background worker ---
@@ -174,7 +196,12 @@ class HomeScreen(Screen):
             results_file = output_dir / "results.json"
             results_file.write_text(
                 json.dumps(
-                    {"key": analysis["key"], "bpm": analysis["bpm"], "chords": analysis["chords"]},
+                    {
+                        "key": analysis["key"],
+                        "bpm": analysis["bpm"],
+                        "chords": analysis["chords"],
+                        "sections": analysis.get("sections", []),
+                    },
                     indent=2,
                     ensure_ascii=False,
                 ),
@@ -182,7 +209,13 @@ class HomeScreen(Screen):
             )
             log(t("home.log_saved", path=results_file))
 
-            result = {**analysis, "stems": stems, "audio_name": audio_path.stem, "output_dir": output_dir}
+            result = {
+                **analysis,
+                "stems": stems,
+                "audio_name": audio_path.stem,
+                "output_dir": output_dir,
+                "_source": source,
+            }
             self.app.call_from_thread(self._on_complete, result)
 
         except Exception as exc:

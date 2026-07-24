@@ -26,6 +26,10 @@ venv/bin/music-tui
 
 ## Features
 
+### Language support
+
+The interface is available in **English** and **Spanish**. Press **`l`** from the main menu to switch languages at any time — all labels, hints, and notifications update instantly.
+
 ### Process Audio
 
 Accepts a local audio file or a YouTube URL and runs the full pipeline:
@@ -35,10 +39,15 @@ Accepts a local audio file or a YouTube URL and runs the full pipeline:
 3. **Analyze** the `other` stem (harmonics without vocals or percussion):
    - Key — Krumhansl-Kessler profiles on chroma CQT
    - BPM — `librosa.beat.beat_track`
-   - Chords — template matching on chroma (24 chords: 12 major + 12 minor)
+   - Chords — template matching on chroma (108 templates: major, minor, dim, aug, sus2, sus4, 7, maj7, m7 × 12 notes)
+   - Sections — structural segmentation via `librosa.segment.agglomerative`, labeled A/B/C/D/E
 4. **Save** `results.json` alongside the stems at `~/.music-processor/stems/<song>/`
 
 From the results screen each stem can be played back with `mpv` or `ffplay`.
+
+### History
+
+Every analyzed song is saved to `~/.music-processor/history.json`. Press **h** from the main menu (or use the History button) to browse past analyses and reopen any result without re-running the pipeline. Press **d** on a history entry to remove it.
 
 ### Chord Library
 
@@ -213,11 +222,12 @@ make run
 ```
 ~/.music-processor/
 ├── downloads/          # audio downloaded from YouTube
+├── history.json        # index of all analyzed songs
 └── stems/<song>/
     └── htdemucs/<song>/
         ├── drums.mp3
         ├── bass.mp3
         ├── vocals.mp3
         ├── other.mp3
-        └── results.json    # detected key, BPM, and chords
+        └── results.json    # detected key, BPM, chords, and sections
 ```
